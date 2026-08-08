@@ -1,10 +1,4 @@
-const sessionState = {
-    sessionName: '',
-    recoveryRatio: 0,
-    segments: [],
-    totalRecoveryTime: 0,
-    totalWorkTime: 0
-};
+// Session state
 
 const sessionSegment = {
     timestampBegan: null,
@@ -12,8 +6,23 @@ const sessionSegment = {
     type: null
 };
 
+const sessionState = {
+    sessionName: '',
+    recoveryRatio: 0,
+    segments: [], // meant to be an array of session segments! 
+    totalRecoveryTime: 0,
+    totalWorkTime: 0
+};
+
+
+// It's not pretty, but we're just going to select various elements
+// here because I really CBA to split everything up into files...
+
 const depressedOMeter = document.querySelector('#depressed-o-meter');
 const depressedOMeterValue = document.querySelector('#depressed-o-meter-value');
+
+// Depresssed-O-Meter UI functionality! 
+
 const depressedOMeterOptions = [
     'Stuck in Bed...',
     'Seen Better Days...',
