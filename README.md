@@ -1,7 +1,9 @@
-<div align="center">
-### Burnout Clock!
+<center>
+<h3>
+Burnout Clock!
+</h3>
 The contracting equivalent of giving your dog a pill wrapped in a slice of cheese!
-</div>
+</center>
 
 ---
 
