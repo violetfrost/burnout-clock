@@ -86,7 +86,7 @@ function startSessionSegment(type, lengthMinutes) {
     return segment;
 }
 
-function endSessionSegment(type) {
+function endSessionSegment(type, finishSession = false) {
     const segment = sessionState.segments.at(-1);
 
     if (!segment || segment.type !== type || segment.timestampEnded !== null) {
@@ -103,14 +103,14 @@ function endSessionSegment(type) {
         sessionState.totalRecoveryTime += (segment.timestampEnded - segment.timestampBegan) / 60000;
     }
 
-    if (sessionState.segments.length < sessionState.numSegments) {
-        switch_to_page(type === 'work' ? 'play' : 'work');
-    } else {
+    if (finishSession || sessionState.segments.length >= sessionState.numSegments) {
         switch_to_page('finish');
+    } else {
+        switch_to_page(type === 'work' ? 'play' : 'work');
     }
 }
 
-endWorkSegmentButton.addEventListener('click', () => endSessionSegment('work'));
+endWorkSegmentButton.addEventListener('click', () => endSessionSegment('work', true));
 endPlaySegmentButton.addEventListener('click', () => endSessionSegment('play'));
 
 // Page switching!
@@ -231,3 +231,10 @@ downloadSessionRecordsButton.addEventListener('click', () => {
 });
 
 startNewTaskButton.addEventListener('click', () => switch_to_page('setup'));
+
+window.addEventListener('beforeunload', (event) => {
+    if (setupPage.classList.contains('d-none')) {
+        event.preventDefault();
+        event.returnValue = '';
+    }
+});
