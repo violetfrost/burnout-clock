@@ -23,12 +23,18 @@ const sessionState = {
 const taskName = document.querySelector('#task-name');
 const taskLength = document.querySelector('#task-length');
 const maximumTotalTime = document.querySelector('#maximum-total-time');
+const returnToWorkTime = document.querySelector('#return-to-work-time');
+const completedWorkMinutes = document.querySelector('#completed-work-minutes');
 const setupPage = document.querySelector('#setup');
 const workPage = document.querySelector('#work');
 const playPage = document.querySelector('#play');
+const finishPage = document.querySelector('#finish');
 const setupForm = setupPage.querySelector('form');
 const endWorkSegmentButton = document.querySelector('#end-work-segment');
 const endPlaySegmentButton = document.querySelector('#end-play-segment');
+const downloadSessionRecordsButton = document.querySelector('#download-session-records');
+const startNewTaskButton = document.querySelector('#start-new-task');
+const pageChime = new Audio('assets/sound/chime.wav');
 let activeSegmentTimeout = null;
 
 function validateMaximumTotalTime() {
@@ -76,6 +82,8 @@ function startSessionSegment(type, lengthMinutes) {
         () => endSessionSegment(type),
         lengthMinutes * 60 * 1000
     );
+
+    return segment;
 }
 
 function endSessionSegment(type) {
@@ -89,8 +97,16 @@ function endSessionSegment(type) {
     activeSegmentTimeout = null;
     segment.timestampEnded = Date.now();
 
+    if (type === 'work') {
+        sessionState.totalWorkTime += (segment.timestampEnded - segment.timestampBegan) / 60000;
+    } else {
+        sessionState.totalRecoveryTime += (segment.timestampEnded - segment.timestampBegan) / 60000;
+    }
+
     if (sessionState.segments.length < sessionState.numSegments) {
         switch_to_page(type === 'work' ? 'play' : 'work');
+    } else {
+        switch_to_page('finish');
     }
 }
 
@@ -116,14 +132,25 @@ function switch_to_page(pageName) {
             nextPage = playPage;
             loadPage = playPageLoaded;
             break;
+        case 'finish':
+            nextPage = finishPage;
+            loadPage = finishPageLoaded;
+            break;
         default:
             nextPage = setupPage;
             loadPage = setupPageLoaded;
     }
 
-    [setupPage, workPage, playPage].forEach((page) => {
+    const pageChanged = nextPage.classList.contains('d-none');
+
+    [setupPage, workPage, playPage, finishPage].forEach((page) => {
         page.classList.toggle('d-none', page !== nextPage);
     });
+
+    if (pageChanged) {
+        pageChime.currentTime = 0;
+        pageChime.play().catch(() => {});
+    }
 
     loadPage();
 }
@@ -160,5 +187,47 @@ function workPageLoaded() {
 }
 
 function playPageLoaded() {
-    startSessionSegment('play', sessionState.playSegmentLengthMinutes);
+    const segment = startSessionSegment('play', sessionState.playSegmentLengthMinutes);
+    const returnTime = new Date(
+        segment.timestampBegan + (sessionState.playSegmentLengthMinutes * 60 * 1000)
+    );
+
+    returnToWorkTime.dateTime = returnTime.toISOString();
+    returnToWorkTime.textContent = returnTime.toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit'
+    });
 }
+
+function finishPageLoaded() {
+    completedWorkMinutes.textContent = Math.round(sessionState.totalWorkTime);
+}
+
+downloadSessionRecordsButton.addEventListener('click', () => {
+    const taskNameSlug = sessionState.sessionName
+        .trim()
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'unnamed-task';
+    const downloadTimestamp = new Date()
+        .toISOString()
+        .replace('T', '_')
+        .replace(/\.\d{3}Z$/, 'z')
+        .replace(/:/g, '-');
+    const recordsUrl = URL.createObjectURL(new Blob(
+        [JSON.stringify(sessionState, null, 2)],
+        { type: 'application/json' }
+    ));
+    const downloadLink = document.createElement('a');
+
+    downloadLink.href = recordsUrl;
+    downloadLink.download = `burnout-clock-session-${taskNameSlug}-${downloadTimestamp}.json`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    URL.revokeObjectURL(recordsUrl);
+});
+
+startNewTaskButton.addEventListener('click', () => switch_to_page('setup'));
