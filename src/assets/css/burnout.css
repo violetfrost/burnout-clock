@@ -1,3 +1,8 @@
 .content-container {
     max-width: 600px;
 }
+
+.content-container > .card > .card-body,
+.content-container > .card > .card-body > .flex-grow-1 {
+    min-height: 0;
+}
