@@ -27,6 +27,9 @@ const setupPage = document.querySelector('#setup');
 const workPage = document.querySelector('#work');
 const playPage = document.querySelector('#play');
 const setupForm = setupPage.querySelector('form');
+const endWorkSegmentButton = document.querySelector('#end-work-segment');
+const endPlaySegmentButton = document.querySelector('#end-play-segment');
+let activeSegmentTimeout = null;
 
 function validateMaximumTotalTime() {
     maximumTotalTime.setCustomValidity(
@@ -53,6 +56,46 @@ function calculateSessionSegments(workTimeHours, maxTimeHours) {
     sessionState.workSegmentLengthMinutes = workTimeMinutes / numWorkSegments;
     sessionState.playSegmentLengthMinutes = playTimeMinutes / numPlaySegments;
 }
+
+function startSessionSegment(type, lengthMinutes) {
+    clearTimeout(activeSegmentTimeout);
+
+    const previousSegment = sessionState.segments.at(-1);
+    if (previousSegment && previousSegment.timestampEnded === null) {
+        previousSegment.timestampEnded = Date.now();
+    }
+
+    const segment = {
+        ...sessionSegment,
+        timestampBegan: Date.now(),
+        type: type
+    };
+
+    sessionState.segments.push(segment);
+    activeSegmentTimeout = setTimeout(
+        () => endSessionSegment(type),
+        lengthMinutes * 60 * 1000
+    );
+}
+
+function endSessionSegment(type) {
+    const segment = sessionState.segments.at(-1);
+
+    if (!segment || segment.type !== type || segment.timestampEnded !== null) {
+        return;
+    }
+
+    clearTimeout(activeSegmentTimeout);
+    activeSegmentTimeout = null;
+    segment.timestampEnded = Date.now();
+
+    if (sessionState.segments.length < sessionState.numSegments) {
+        switch_to_page(type === 'work' ? 'play' : 'work');
+    }
+}
+
+endWorkSegmentButton.addEventListener('click', () => endSessionSegment('work'));
+endPlaySegmentButton.addEventListener('click', () => endSessionSegment('play'));
 
 // Page switching!
 
@@ -98,6 +141,9 @@ setupForm.addEventListener('submit', (event) => {
 
     sessionState.sessionName = taskName.value;
     sessionState.maxTimeHours = Number(maximumTotalTime.value);
+    sessionState.segments = [];
+    sessionState.totalRecoveryTime = 0;
+    sessionState.totalWorkTime = 0;
     calculateSessionSegments(Number(taskLength.value), sessionState.maxTimeHours);
 
     switch_to_page('work');
@@ -110,7 +156,9 @@ function setupPageLoaded() {
 }
 
 function workPageLoaded() {
+    startSessionSegment('work', sessionState.workSegmentLengthMinutes);
 }
 
 function playPageLoaded() {
+    startSessionSegment('play', sessionState.playSegmentLengthMinutes);
 }
