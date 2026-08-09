@@ -9,8 +9,9 @@ const sessionSegment = {
 const sessionState = {
     sessionName: '',
     maxTimeHours: 0,
-    numWorkSegments: 0,
-    numRecoverySegments: 0,
+    numSegments: 0,
+    workSegmentLengthMinutes: 0,
+    playSegmentLengthMinutes: 0,
     segments: [], // meant to be an array of session segments! 
     totalRecoveryTime: 0,
     totalWorkTime: 0
@@ -28,12 +29,10 @@ const playPage = document.querySelector('#play');
 const setupForm = setupPage.querySelector('form');
 
 function validateMaximumTotalTime() {
-    const taskLengthInHours = Number(taskLength.value);
-    const maximumTotalTimeInHours = Number(maximumTotalTime.value);
-    const bothTimesEntered = taskLength.value !== '' && maximumTotalTime.value !== '';
-
     maximumTotalTime.setCustomValidity(
-        bothTimesEntered && maximumTotalTimeInHours <= taskLengthInHours
+        taskLength.value !== ''
+            && maximumTotalTime.value !== ''
+            && Number(maximumTotalTime.value) <= Number(taskLength.value)
             ? 'Maximum total time must be greater than the anticipated task length.'
             : ''
     );
@@ -42,9 +41,21 @@ function validateMaximumTotalTime() {
 taskLength.addEventListener('input', validateMaximumTotalTime);
 maximumTotalTime.addEventListener('input', validateMaximumTotalTime);
 
+function calculateSessionSegments(workTimeHours, maxTimeHours) {
+    const workTimeMinutes = workTimeHours * 60;
+    const playTimeMinutes = Math.min(workTimeMinutes, (maxTimeHours * 60) - workTimeMinutes);
+    const numWorkSegments = playTimeMinutes === workTimeMinutes
+        ? 3
+        : Math.max(2, Math.round(workTimeMinutes / (workTimeMinutes - playTimeMinutes)));
+    const numPlaySegments = numWorkSegments - 1;
+
+    sessionState.numSegments = numWorkSegments + numPlaySegments;
+    sessionState.workSegmentLengthMinutes = workTimeMinutes / numWorkSegments;
+    sessionState.playSegmentLengthMinutes = playTimeMinutes / numPlaySegments;
+}
+
 // Page switching!
 
-const pages = [setupPage, workPage, playPage];
 function switch_to_page(pageName) {
     var nextPage;
     var loadPage;
@@ -67,7 +78,7 @@ function switch_to_page(pageName) {
             loadPage = setupPageLoaded;
     }
 
-    pages.forEach((page) => {
+    [setupPage, workPage, playPage].forEach((page) => {
         page.classList.toggle('d-none', page !== nextPage);
     });
 
@@ -87,6 +98,7 @@ setupForm.addEventListener('submit', (event) => {
 
     sessionState.sessionName = taskName.value;
     sessionState.maxTimeHours = Number(maximumTotalTime.value);
+    calculateSessionSegments(Number(taskLength.value), sessionState.maxTimeHours);
 
     switch_to_page('work');
 });

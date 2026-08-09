@@ -1,6 +1,4 @@
-const tooltipTriggers = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-
-tooltipTriggers.forEach((tooltipTrigger) => {
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((tooltipTrigger) => {
     new bootstrap.Tooltip(tooltipTrigger, {
         offset: [0, 10]
     });
